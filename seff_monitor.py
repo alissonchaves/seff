@@ -8,6 +8,7 @@ import os
 import pathlib
 import signal
 import socket
+import re
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -75,6 +76,26 @@ def gpu_metrics():
         "memory_used_mb": sum(row["used_mb"] for row in rows),
         "memory_total_mb": sum(row["total_mb"] for row in rows),
     }
+
+
+def slurm_metadata(job_id):
+    name = os.environ.get("SLURM_JOB_NAME", "unknown")
+    submit_line = os.environ.get("SEFF_SUBMIT_LINE", "")
+    try:
+        result = subprocess.run(
+            ["scontrol", "show", "job", "-o", str(job_id)],
+            capture_output=True, text=True, timeout=5, check=True,
+        )
+        text = result.stdout
+        name_match = re.search(r"(?:^| )JobName=(\S+)", text)
+        command_match = re.search(r"(?:^| )Command=(\S+)", text)
+        if name_match:
+            name = name_match.group(1)
+        if not submit_line and command_match:
+            submit_line = command_match.group(1)
+    except (FileNotFoundError, subprocess.SubprocessError):
+        pass
+    return name, submit_line or "—"
 
 
 def write_snapshot(path, snapshot):
@@ -151,6 +172,7 @@ def collect(job_id, output_dir, interval):
     ))
     previous_cpu = read_cpu_usage(cgroup)
     previous_time = time.monotonic()
+    job_name, submit_line = slurm_metadata(job_id)
 
     def cleanup(_signum=None, _frame=None):
         remove_index_entry(output_dir, str(job_id), node, filename)
@@ -169,6 +191,8 @@ def collect(job_id, output_dir, interval):
 
         snapshot = {
             "job_id": str(job_id),
+            "job_name": job_name,
+            "submit_line": submit_line,
             "state": "RUNNING",
             "user": os.environ.get("SLURM_JOB_USER", os.environ.get("USER", "unknown")),
             "node": node,
