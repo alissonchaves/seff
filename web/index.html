@@ -1,14 +1,8 @@
-#!/usr/bin/env python3
-"""Install a dependency-free static dashboard for live seff metrics."""
-
-import argparse
-import pathlib
-
-
-PAGE = r'''<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>seff live metrics</title>
   <style>
     body{font:16px system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#17202a}
@@ -18,7 +12,6 @@ PAGE = r'''<!doctype html>
   </style>
 </head>
 <body>
-  <div class="container">
   <h1>seff live metrics</h1>
   <form id="form"><input id="job" placeholder="Job ID" required><button>Load</button></form>
   <p id="status">Enter a job ID. Refresh interval: 10 seconds.</p>
@@ -29,36 +22,22 @@ PAGE = r'''<!doctype html>
     <div class="card">GPU memory<div class="value" id="gpumem">—</div></div>
   </div>
   <script>
-    const q=id=>document.getElementById(id); let timer;
+    const q=id=>document.getElementById(id);let timer;
     function formatMemory(kb){if(!kb)return '—';let n=kb,u='KB';if(n>1024){n/=1024;u='MB'}if(n>1024){n/=1024;u='GB'}return n.toFixed(2)+' '+u}
     async function load(){const id=q('job').value.trim();if(!id)return;try{
       const ir=await fetch('metrics-index.json?'+Date.now());if(!ir.ok)throw Error('metrics index not found');const index=await ir.json();
       const entries=Object.values(index).filter(x=>x.job_id===id);if(!entries.length)throw Error('metrics not found');
       const data=await Promise.all(entries.map(x=>fetch(x.file+'?'+Date.now()).then(r=>r.json())));
-      const cpuCores=data.reduce((n,d)=>n+(d.cpu_percent||0)*(d.cpus||1)/100,0), cpus=data.reduce((n,d)=>n+(d.cpus||1),0);
-      const memory=data.reduce((n,d)=>n+(d.memory_used_kb||0),0), gpuCount=data.reduce((n,d)=>n+((d.gpu||{}).count||0),0);
+      const cpuCores=data.reduce((n,d)=>n+(d.cpu_percent||0)*(d.cpus||1)/100,0),cpus=data.reduce((n,d)=>n+(d.cpus||1),0);
+      const memory=data.reduce((n,d)=>n+(d.memory_used_kb||0),0),gpuCount=data.reduce((n,d)=>n+((d.gpu||{}).count||0),0);
       const gpuUtil=data.reduce((n,d)=>n+((d.gpu||{}).utilization_percent||0)*((d.gpu||{}).count||0),0);
-      const gpuMem=data.reduce((n,d)=>n+((d.gpu||{}).memory_used_mb||0),0), latest=data.map(d=>d.updated_at).sort().at(-1);
+      const gpuMem=data.reduce((n,d)=>n+((d.gpu||{}).memory_used_mb||0),0),latest=data.map(d=>d.updated_at).sort().at(-1);
       q('cpu').textContent=cpus?((cpuCores/cpus)*100).toFixed(2)+'%':'—';q('memory').textContent=formatMemory(memory);
       q('gpu').textContent=gpuCount?(gpuUtil/gpuCount).toFixed(2)+'%':'—';q('gpumem').textContent=gpuCount?gpuMem+' MB':'—';
       q('status').textContent='Job '+id+' · '+data[0].user+' · '+data.length+' node(s) · updated '+latest;q('status').className='';
-    }catch(e){q('status').textContent=e.message;q('status').className='error'} }
+    }catch(e){q('status').textContent=e.message;q('status').className='error'}}
     q('form').addEventListener('submit',e=>{e.preventDefault();clearInterval(timer);load();timer=setInterval(load,10000)});
     const id=new URLSearchParams(location.search).get('job');if(id){q('job').value=id;q('form').requestSubmit()}
   </script>
-</body></html>
-'''
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Install the seff live metrics dashboard")
-    parser.add_argument("output_dir", help="Directory served as public_html/seff")
-    args = parser.parse_args()
-    target = pathlib.Path(args.output_dir).expanduser()
-    (target / "metrics").mkdir(parents=True, exist_ok=True)
-    (target / "index.html").write_text(PAGE)
-    print(f"Installed seff dashboard in {target}")
-
-
-if __name__ == "__main__":
-    main()
+</body>
+</html>

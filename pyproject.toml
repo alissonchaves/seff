@@ -14,7 +14,6 @@ dependencies = []
 
 [project.scripts]
 seff = "seff:main"
-seff-web = "seff_web:main"
 
 [tool.setuptools]
 py-modules = ["seff", "seff_monitor", "seff_web"]

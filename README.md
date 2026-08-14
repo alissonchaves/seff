@@ -110,13 +110,16 @@ The dashboard is a simple static HTML page. It can be installed in Linux's
 directory is created:
 
 ```bash
-sudo seff-web /etc/skel/public_html/seff
+sudo mkdir -p /etc/skel/public_html/seff
+sudo cp web/index.html /etc/skel/public_html/seff/
 ```
 
 For an existing user, install it directly in that user's home directory:
 
 ```bash
-sudo seff-web /home/<user>/public_html/seff
+sudo mkdir -p /home/<user>/public_html/seff
+sudo cp web/index.html /home/<user>/public_html/seff/
+sudo chown -R <user>:<user> /home/<user>/public_html/seff
 ```
 
 The page is available at `~/public_html/seff/index.html` and reads
