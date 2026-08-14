@@ -105,12 +105,24 @@ Install the static dashboard in the login node's public directory:
 seff-web ~/public_html/seff
 ```
 
-The dashboard is a simple static HTML page using the Skeleton CSS framework.
-It is then available at `~/public_html/seff/index.html` and reads
+The dashboard is a simple static HTML page. It can be installed in Linux's
+`/etc/skel` so that new users receive it automatically when their home
+directory is created:
+
+```bash
+sudo seff-web /etc/skel/public_html/seff
+```
+
+For an existing user, install it directly in that user's home directory:
+
+```bash
+sudo seff-web /home/<user>/public_html/seff
+```
+
+The page is available at `~/public_html/seff/index.html` and reads
 the JSON snapshots directly from the same directory. The directory must be
 shared between the login node and compute nodes, or exposed at the same web
-URL. The dashboard has no backend dependencies, uses Skeleton CSS for its
-layout, and refreshes every 10 seconds.
+URL. It has no backend dependencies and refreshes every 10 seconds.
 
 The GPU values represent the GPUs visible to the job/node. For strict
 per-process GPU accounting, Slurm GRES accounting must be configured and GPU
