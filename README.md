@@ -17,12 +17,18 @@ Using `pipx` (recommended):
 pipx install git+https://github.com/alissonchaves/seff.git
 ```
 
+This installs `seff` only for the current user. The executable is normally
+placed in `~/.local/bin`, which must be in that user's `PATH`.
+
 By default, this installation is available only to the current user. To make
 the command available to all Linux users:
 
 ```bash
 sudo pipx install --global git+https://github.com/alissonchaves/seff.git
 ```
+
+Do not omit `--global`: running `pipx install` as `root` installs the command
+only for `root`, usually in `/root/.local/bin`.
 
 Make sure `/usr/local/bin` is in each user's `PATH`:
 
