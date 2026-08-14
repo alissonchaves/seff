@@ -76,6 +76,41 @@ unavailable.
 If these fields are empty in `sacct`, the metric cannot be reconstructed for
 an already completed job.
 
+## Live metrics module
+
+The package also provides a lightweight monitor that runs inside the Slurm
+job and writes one compact JSON snapshot every 10 seconds. It reads CPU and
+memory from the job cgroup and GPU utilization from `nvidia-smi`:
+
+```bash
+seff-monitor --output-dir /shared/seff-metrics --interval 10 &
+MONITOR_PID=$!
+
+# Run the actual workload here.
+srun ./my-program
+
+kill "$MONITOR_PID" 2>/dev/null || true
+```
+
+The monitor writes `<job-id>.json` using an atomic replacement, so the web
+page never reads a partially written file.
+
+Install the static dashboard in the login node's public directory:
+
+```bash
+seff-web ~/public_html/seff
+```
+
+The dashboard is then available at `~/public_html/seff/index.html` and reads
+snapshots from `~/public_html/seff/metrics/`. To use a shared metrics
+directory, publish or mount that directory as the dashboard's `metrics/`
+directory. The dashboard is intentionally dependency-free and refreshes every
+10 seconds.
+
+The GPU values represent the GPUs visible to the job/node. For strict
+per-process GPU accounting, Slurm GRES accounting must be configured and GPU
+allocations should be exclusive.
+
 ## Development
 
 ```bash
