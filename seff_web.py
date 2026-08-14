@@ -31,10 +31,16 @@ PAGE = r'''<!doctype html>
     const q=id=>document.getElementById(id); let timer;
     function formatMemory(kb){if(!kb)return '—';let n=kb,u='KB';if(n>1024){n/=1024;u='MB'}if(n>1024){n/=1024;u='GB'}return n.toFixed(2)+' '+u}
     async function load(){const id=q('job').value.trim();if(!id)return;try{
-      const r=await fetch('metrics/'+encodeURIComponent(id)+'.json?'+Date.now());if(!r.ok)throw Error('metrics not found');const d=await r.json();
-      q('cpu').textContent=d.cpu_percent==null?'—':d.cpu_percent.toFixed(2)+'%';q('memory').textContent=formatMemory(d.memory_used_kb);
-      q('gpu').textContent=d.gpu.utilization_percent==null?'—':d.gpu.utilization_percent.toFixed(2)+'%';q('gpumem').textContent=d.gpu.memory_used_mb==null?'—':d.gpu.memory_used_mb+' MB';
-      q('status').textContent='Job '+d.job_id+' · '+d.user+' · updated '+d.updated_at;q('status').className='';
+      const ir=await fetch('metrics-index.json?'+Date.now());if(!ir.ok)throw Error('metrics index not found');const index=await ir.json();
+      const entries=Object.values(index).filter(x=>x.job_id===id);if(!entries.length)throw Error('metrics not found');
+      const data=await Promise.all(entries.map(x=>fetch(x.file+'?'+Date.now()).then(r=>r.json())));
+      const cpuCores=data.reduce((n,d)=>n+(d.cpu_percent||0)*(d.cpus||1)/100,0), cpus=data.reduce((n,d)=>n+(d.cpus||1),0);
+      const memory=data.reduce((n,d)=>n+(d.memory_used_kb||0),0), gpuCount=data.reduce((n,d)=>n+((d.gpu||{}).count||0),0);
+      const gpuUtil=data.reduce((n,d)=>n+((d.gpu||{}).utilization_percent||0)*((d.gpu||{}).count||0),0);
+      const gpuMem=data.reduce((n,d)=>n+((d.gpu||{}).memory_used_mb||0),0), latest=data.map(d=>d.updated_at).sort().at(-1);
+      q('cpu').textContent=cpus?((cpuCores/cpus)*100).toFixed(2)+'%':'—';q('memory').textContent=formatMemory(memory);
+      q('gpu').textContent=gpuCount?(gpuUtil/gpuCount).toFixed(2)+'%':'—';q('gpumem').textContent=gpuCount?gpuMem+' MB':'—';
+      q('status').textContent='Job '+id+' · '+data[0].user+' · '+data.length+' node(s) · updated '+latest;q('status').className='';
     }catch(e){q('status').textContent=e.message;q('status').className='error'} }
     q('form').addEventListener('submit',e=>{e.preventDefault();clearInterval(timer);load();timer=setInterval(load,10000)});
     const id=new URLSearchParams(location.search).get('job');if(id){q('job').value=id;q('form').requestSubmit()}

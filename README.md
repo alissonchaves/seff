@@ -92,8 +92,11 @@ srun ./my-program
 kill "$MONITOR_PID" 2>/dev/null || true
 ```
 
-The monitor writes `<job-id>.json` using an atomic replacement, so the web
-page never reads a partially written file.
+The monitor writes `<job-id>.<hostname>.json` in `~/public_html/seff/` by
+default. This allows several compute nodes to publish metrics for the same
+job without overwriting one another. It also maintains a small
+`metrics-index.json` using a file lock and atomic replacement, so the web page
+can discover and aggregate all nodes.
 
 Install the static dashboard in the login node's public directory:
 
@@ -102,10 +105,9 @@ seff-web ~/public_html/seff
 ```
 
 The dashboard is then available at `~/public_html/seff/index.html` and reads
-snapshots from `~/public_html/seff/metrics/`. To use a shared metrics
-directory, publish or mount that directory as the dashboard's `metrics/`
-directory. The dashboard is intentionally dependency-free and refreshes every
-10 seconds.
+the JSON snapshots directly from the same directory. The directory must be
+shared between the login node and compute nodes, or exposed at the same web
+URL. The dashboard is dependency-free and refreshes every 10 seconds.
 
 The GPU values represent the GPUs visible to the job/node. For strict
 per-process GPU accounting, Slurm GRES accounting must be configured and GPU

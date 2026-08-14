@@ -2,9 +2,11 @@
 """Collect lightweight, job-scoped Slurm metrics in a compact JSON file."""
 
 import argparse
+import fcntl
 import json
 import os
 import pathlib
+import socket
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -81,9 +83,39 @@ def write_snapshot(path, snapshot):
     os.replace(temporary, path)
 
 
+def update_index(output_dir, snapshot, filename):
+    """Publish this node's file in a small, multi-writer-safe index."""
+    output_dir = pathlib.Path(output_dir)
+    index_path = output_dir / "metrics-index.json"
+    lock_path = output_dir / ".metrics-index.lock"
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            try:
+                entries = json.loads(index_path.read_text())
+            except (FileNotFoundError, json.JSONDecodeError):
+                entries = {}
+            key = f"{snapshot['job_id']}.{snapshot['node']}"
+            entries[key] = {
+                "job_id": snapshot["job_id"],
+                "user": snapshot["user"],
+                "node": snapshot["node"],
+                "file": filename,
+                "updated_at": snapshot["updated_at"],
+            }
+            temporary = index_path.with_suffix(f".tmp.{os.getpid()}")
+            temporary.write_text(json.dumps(entries, separators=(",", ":")) + "\n")
+            os.replace(temporary, index_path)
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
 def collect(job_id, output_dir, interval):
     cgroup = cgroup_path()
-    output = pathlib.Path(output_dir) / f"{job_id}.json"
+    output_dir = pathlib.Path(output_dir).expanduser()
+    node = socket.gethostname().split(".")[0]
+    filename = f"{job_id}.{node}.json"
+    output = output_dir / filename
     cpus = int(os.environ.get(
         "SLURM_CPUS_PER_TASK",
         os.environ.get("SLURM_CPUS_ON_NODE", os.cpu_count() or 1),
@@ -103,6 +135,8 @@ def collect(job_id, output_dir, interval):
         snapshot = {
             "job_id": str(job_id),
             "user": os.environ.get("SLURM_JOB_USER", os.environ.get("USER", "unknown")),
+            "node": node,
+            "cpus": cpus,
             "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cpu_percent": cpu_percent,
             "memory_used_kb": (read_number(cgroup / "memory.current") or 0) // 1024,
@@ -110,13 +144,17 @@ def collect(job_id, output_dir, interval):
             "gpu": gpu_metrics(),
         }
         write_snapshot(output, snapshot)
+        update_index(output_dir, snapshot, filename)
         previous_cpu, previous_time = current_cpu, now
 
 
 def main():
     parser = argparse.ArgumentParser(description="Collect live metrics for a Slurm job")
     parser.add_argument("--job-id", default=os.environ.get("SLURM_JOB_ID"), required=False)
-    parser.add_argument("--output-dir", required=True, help="Shared directory for compact JSON snapshots")
+    parser.add_argument(
+        "--output-dir", default="~/public_html/seff",
+        help="Shared directory for compact JSON snapshots (default: ~/public_html/seff)",
+    )
     parser.add_argument("--interval", type=float, default=10, help="Sampling interval in seconds")
     args = parser.parse_args()
     if not args.job_id:
