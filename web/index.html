@@ -13,8 +13,9 @@
 </head>
 <body>
   <h1>seff live metrics</h1>
-  <form id="form"><input id="job" placeholder="Job ID" required><button>Load</button></form>
-  <p id="status">Enter a job ID. Refresh interval: 10 seconds.</p>
+  <h2>Running jobs</h2>
+  <div id="jobs">Loading jobs...</div>
+  <p id="status">Refresh interval: 10 seconds.</p>
   <div class="metrics">
     <div class="card">CPU<div class="value" id="cpu">—</div></div>
     <div class="card">Memory<div class="value" id="memory">—</div></div>
@@ -22,9 +23,9 @@
     <div class="card">GPU memory<div class="value" id="gpumem">—</div></div>
   </div>
   <script>
-    const q=id=>document.getElementById(id);let timer;
+    const q=id=>document.getElementById(id);let timer,selectedJob=new URLSearchParams(location.search).get('job');
     function formatMemory(kb){if(!kb)return '—';let n=kb,u='KB';if(n>1024){n/=1024;u='MB'}if(n>1024){n/=1024;u='GB'}return n.toFixed(2)+' '+u}
-    async function load(){const id=q('job').value.trim();if(!id)return;try{
+    async function loadJob(id){try{
       const ir=await fetch('metrics-index.json?'+Date.now());if(!ir.ok)throw Error('metrics index not found');const index=await ir.json();
       const entries=Object.values(index).filter(x=>x.job_id===id);if(!entries.length)throw Error('metrics not found');
       const data=await Promise.all(entries.map(x=>fetch(x.file+'?'+Date.now()).then(r=>r.json())));
@@ -36,8 +37,13 @@
       q('gpu').textContent=gpuCount?(gpuUtil/gpuCount).toFixed(2)+'%':'—';q('gpumem').textContent=gpuCount?gpuMem+' MB':'—';
       q('status').textContent='Job '+id+' · '+data[0].user+' · '+data.length+' node(s) · updated '+latest;q('status').className='';
     }catch(e){q('status').textContent=e.message;q('status').className='error'}}
-    q('form').addEventListener('submit',e=>{e.preventDefault();clearInterval(timer);load();timer=setInterval(load,10000)});
-    const id=new URLSearchParams(location.search).get('job');if(id){q('job').value=id;q('form').requestSubmit()}
+    async function refresh(){try{const r=await fetch('metrics-index.json?'+Date.now());if(!r.ok)throw Error('metrics index not found');const index=await r.json();
+      const grouped={};Object.values(index).forEach(e=>{(grouped[e.job_id]??=[]).push(e)});
+      const jobs=Object.keys(grouped).sort();q('jobs').innerHTML=jobs.length?jobs.map(id=>'<button onclick="selectJob(\''+id+'\')">'+id+'</button>').join(' '):'<p>No running jobs.</p>';
+      if(!selectedJob||!grouped[selectedJob])selectedJob=jobs[0];if(selectedJob)await loadJob(selectedJob);
+    }catch(e){q('jobs').textContent=e.message;q('jobs').className='error'}}
+    function selectJob(id){selectedJob=id;history.replaceState(null,'','?job='+encodeURIComponent(id));loadJob(id)}
+    refresh();timer=setInterval(refresh,10000);
   </script>
 </body>
 </html>

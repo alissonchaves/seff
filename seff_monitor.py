@@ -6,6 +6,7 @@ import fcntl
 import json
 import os
 import pathlib
+import signal
 import socket
 import subprocess
 import time
@@ -110,6 +111,29 @@ def update_index(output_dir, snapshot, filename):
             fcntl.flock(lock, fcntl.LOCK_UN)
 
 
+def remove_index_entry(output_dir, job_id, node, filename):
+    output_dir = pathlib.Path(output_dir)
+    index_path = output_dir / "metrics-index.json"
+    lock_path = output_dir / ".metrics-index.lock"
+    with lock_path.open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            try:
+                entries = json.loads(index_path.read_text())
+            except (FileNotFoundError, json.JSONDecodeError):
+                entries = {}
+            entries.pop(f"{job_id}.{node}", None)
+            temporary = index_path.with_suffix(f".tmp.{os.getpid()}")
+            temporary.write_text(json.dumps(entries, separators=(",", ":")) + "\n")
+            os.replace(temporary, index_path)
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+    try:
+        (output_dir / filename).unlink()
+    except FileNotFoundError:
+        pass
+
+
 def collect(job_id, output_dir, interval):
     cgroup = cgroup_path()
     output_dir = pathlib.Path(output_dir).expanduser()
@@ -123,6 +147,13 @@ def collect(job_id, output_dir, interval):
     previous_cpu = read_cpu_usage(cgroup)
     previous_time = time.monotonic()
 
+    def cleanup(_signum=None, _frame=None):
+        remove_index_entry(output_dir, str(job_id), node, filename)
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, cleanup)
+    signal.signal(signal.SIGINT, cleanup)
+
     while True:
         time.sleep(interval)
         now = time.monotonic()
@@ -134,6 +165,7 @@ def collect(job_id, output_dir, interval):
 
         snapshot = {
             "job_id": str(job_id),
+            "state": "RUNNING",
             "user": os.environ.get("SLURM_JOB_USER", os.environ.get("USER", "unknown")),
             "node": node,
             "cpus": cpus,
