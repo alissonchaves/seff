@@ -83,7 +83,7 @@ job and writes one compact JSON snapshot every 10 seconds. It reads CPU and
 memory from the job cgroup and GPU utilization from `nvidia-smi`:
 
 ```bash
-seff-monitor --output-dir /shared/seff-metrics --interval 10 &
+seff --monitor --output-dir ~/public_html/seff --interval 10 &
 MONITOR_PID=$!
 
 # Run the actual workload here.
@@ -92,7 +92,8 @@ srun ./my-program
 kill "$MONITOR_PID" 2>/dev/null || true
 ```
 
-The monitor writes `<job-id>.<hostname>.json` in `~/public_html/seff/` by
+The `seff --monitor` mode writes `<job-id>.<hostname>.json` in
+`~/public_html/seff/` by
 default. This allows several compute nodes to publish metrics for the same
 job without overwriting one another. It also maintains a small
 `metrics-index.json` using a file lock and atomic replacement, so the web page

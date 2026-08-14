@@ -5,8 +5,10 @@ import argparse
 import json
 import re
 import math
+import os
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Any
+from seff_monitor import collect as collect_live_metrics
 
 # Terminal Colors
 class Colors:
@@ -297,11 +299,32 @@ def print_job_report(job: JobMetrics):
 
 def main():
     parser = argparse.ArgumentParser(description="Seff: Slurm efficiency tool (Python version)")
-    parser.add_argument('job_ids', nargs='+', help='One or more Slurm Job IDs')
+    parser.add_argument('job_ids', nargs='*', help='One or more Slurm Job IDs')
     parser.add_argument('--json', action='store_true', help='Output in JSON format')
     parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--monitor', action='store_true',
+                        help='Collect live CPU, memory and GPU metrics')
+    parser.add_argument('--output-dir', default='~/public_html/seff',
+                        help='Directory for live metric JSON files')
+    parser.add_argument('--interval', type=float, default=10,
+                        help='Live monitoring interval in seconds')
     
     args = parser.parse_args()
+
+    if args.monitor:
+        if len(args.job_ids) > 1:
+            parser.error('--monitor accepts at most one job ID')
+        job_id = args.job_ids[0] if args.job_ids else os.environ.get('SLURM_JOB_ID')
+        if not job_id:
+            parser.error('--monitor requires a job ID or SLURM_JOB_ID')
+        if args.interval <= 0:
+            parser.error('--interval must be greater than zero')
+        collect_live_metrics(job_id, args.output_dir, args.interval)
+        return
+
+    if not args.job_ids:
+        parser.error('at least one job ID is required unless --monitor is used')
+
     parser_obj = SeffParser(debug=args.debug)
     jobs = parser_obj.get_jobs(args.job_ids)
 
