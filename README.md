@@ -27,6 +27,14 @@ the command available to all Linux users:
 sudo pipx install --global git+https://github.com/alissonchaves/seff.git
 ```
 
+Add the global `pipx` binary directory to the system `PATH`:
+
+```bash
+sudo pipx ensurepath --global
+```
+
+Open a new login session after running this command.
+
 Do not omit `--global`: running `pipx install` as `root` installs the command
 only for `root`, usually in `/root/.local/bin`.
 
