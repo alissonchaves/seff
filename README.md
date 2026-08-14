@@ -113,6 +113,11 @@ job without overwriting one another. It also maintains a small
 `metrics-index.json` using a file lock and atomic replacement, so the web page
 can discover and aggregate all nodes.
 
+`--monitor` does not take a job ID. It must run inside a Slurm job and uses
+the `SLURM_JOB_ID` and cgroup supplied by Slurm. When monitors are started
+automatically for all jobs, the dashboard can aggregate the JSON files for
+the user's jobs across all compute nodes.
+
 The dashboard is a simple static HTML page. It can be copied to the login
 node's public directory or installed in Linux's
 `/etc/skel` so that new users receive it automatically when their home

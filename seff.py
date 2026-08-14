@@ -312,11 +312,11 @@ def main():
     args = parser.parse_args()
 
     if args.monitor:
-        if len(args.job_ids) > 1:
-            parser.error('--monitor accepts at most one job ID')
-        job_id = args.job_ids[0] if args.job_ids else os.environ.get('SLURM_JOB_ID')
+        if args.job_ids:
+            parser.error('--monitor does not accept a job ID; run it inside the Slurm job')
+        job_id = os.environ.get('SLURM_JOB_ID')
         if not job_id:
-            parser.error('--monitor requires a job ID or SLURM_JOB_ID')
+            parser.error('--monitor must run inside a Slurm job (SLURM_JOB_ID is not set)')
         if args.interval <= 0:
             parser.error('--interval must be greater than zero')
         collect_live_metrics(job_id, args.output_dir, args.interval)
