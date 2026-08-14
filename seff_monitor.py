@@ -79,7 +79,9 @@ def gpu_metrics():
 
 def write_snapshot(path, snapshot):
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
+    # Include the PID so two task-level monitors cannot replace each other's
+    # temporary file when a job starts more than one task on the same node.
+    temporary = path.with_suffix(f"{path.suffix}.tmp.{os.getpid()}")
     temporary.write_text(json.dumps(snapshot, separators=(",", ":")) + "\n")
     os.replace(temporary, path)
 
