@@ -6,43 +6,31 @@
   <title>seff live metrics</title>
   <style>
     body{font:16px system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#17202a}
-    input,button{font:inherit;padding:.5rem}.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1.5rem}
-    .card{border:1px solid #ddd;border-radius:6px;padding:1rem}.value{font-size:2rem;font-weight:600;margin-top:.5rem}
+    input,button{font:inherit;padding:.5rem}.table-wrap{overflow-x:auto;margin-top:1.5rem}
+    table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:.7rem;text-align:left;border-bottom:1px solid #ddd;white-space:nowrap}
+    th{background:#f2f2f2}.empty{text-align:center;color:#666;padding:1.5rem}
     #status{color:#666}.error{color:#a00}
   </style>
 </head>
 <body>
   <h1>seff live metrics</h1>
   <h2>Running jobs</h2>
-  <div id="jobs">Loading jobs...</div>
-  <p id="status">Refresh interval: 10 seconds.</p>
-  <div class="metrics">
-    <div class="card">CPU<div class="value" id="cpu">—</div></div>
-    <div class="card">Memory<div class="value" id="memory">—</div></div>
-    <div class="card">GPU utilization<div class="value" id="gpu">—</div></div>
-    <div class="card">GPU memory<div class="value" id="gpumem">—</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Node</th><th>Job ID</th><th>CPU</th><th>Memory</th><th>GPU utilization</th><th>GPU memory</th></tr></thead>
+      <tbody id="jobs"><tr><td class="empty" colspan="6">Loading jobs...</td></tr></tbody>
+    </table>
   </div>
+  <p id="status">Refresh interval: 10 seconds.</p>
   <script>
     const q=id=>document.getElementById(id);let timer,selectedJob=new URLSearchParams(location.search).get('job');
     function formatMemory(kb){if(!kb)return '—';let n=kb,u='KB';if(n>1024){n/=1024;u='MB'}if(n>1024){n/=1024;u='GB'}return n.toFixed(2)+' '+u}
-    async function loadJob(id){try{
-      const ir=await fetch('metrics-index.json?'+Date.now());if(!ir.ok)throw Error('metrics index not found');const index=await ir.json();
-      const entries=Object.values(index).filter(x=>x.job_id===id);if(!entries.length)throw Error('metrics not found');
-      const data=await Promise.all(entries.map(x=>fetch(x.file+'?'+Date.now()).then(r=>r.json())));
-      const cpuCores=data.reduce((n,d)=>n+(d.cpu_percent||0)*(d.cpus||1)/100,0),cpus=data.reduce((n,d)=>n+(d.cpus||1),0);
-      const memory=data.reduce((n,d)=>n+(d.memory_used_kb||0),0),gpuCount=data.reduce((n,d)=>n+((d.gpu||{}).count||0),0);
-      const gpuUtil=data.reduce((n,d)=>n+((d.gpu||{}).utilization_percent||0)*((d.gpu||{}).count||0),0);
-      const gpuMem=data.reduce((n,d)=>n+((d.gpu||{}).memory_used_mb||0),0),latest=data.map(d=>d.updated_at).sort().at(-1);
-      q('cpu').textContent=cpus?((cpuCores/cpus)*100).toFixed(2)+'%':'—';q('memory').textContent=formatMemory(memory);
-      q('gpu').textContent=gpuCount?(gpuUtil/gpuCount).toFixed(2)+'%':'—';q('gpumem').textContent=gpuCount?gpuMem+' MB':'—';
-      q('status').textContent='Job '+id+' · '+data[0].user+' · '+data.length+' node(s) · updated '+latest;q('status').className='';
-    }catch(e){q('status').textContent=e.message;q('status').className='error'}}
     async function refresh(){try{const r=await fetch('metrics-index.json?'+Date.now());if(!r.ok)throw Error('metrics index not found');const index=await r.json();
-      const grouped={};Object.values(index).forEach(e=>{(grouped[e.job_id]??=[]).push(e)});
-      const jobs=Object.keys(grouped).sort();q('jobs').innerHTML=jobs.length?jobs.map(id=>'<button onclick="selectJob(\''+id+'\')">'+id+'</button>').join(' '):'<p>No running jobs.</p>';
-      if(!selectedJob||!grouped[selectedJob])selectedJob=jobs[0];if(selectedJob)await loadJob(selectedJob);
-    }catch(e){q('jobs').textContent=e.message;q('jobs').className='error'}}
-    function selectJob(id){selectedJob=id;history.replaceState(null,'','?job='+encodeURIComponent(id));loadJob(id)}
+      const entries=Object.values(index).sort((a,b)=>a.job_id.localeCompare(b.job_id)||a.node.localeCompare(b.node));
+      const data=await Promise.all(entries.map(async e=>({meta:e,data:await fetch(e.file+'?'+Date.now()).then(r=>r.json())})));
+      q('jobs').innerHTML=data.length?data.map(({meta:d,data:x})=>`<tr><td>${d.node}</td><td>${d.job_id}</td><td>${x.cpu_percent==null?'—':x.cpu_percent.toFixed(2)+'%'}</td><td>${formatMemory(x.memory_used_kb)}</td><td>${x.gpu&&x.gpu.utilization_percent!=null?x.gpu.utilization_percent.toFixed(2)+'%':'—'}</td><td>${x.gpu&&x.gpu.memory_used_mb!=null?x.gpu.memory_used_mb+' MB':'—'}</td></tr>`).join(''):'<tr><td class="empty" colspan="6">No running jobs.</td></tr>';
+      q('status').textContent=data.length+' node(s) · updated '+new Date().toLocaleTimeString();q('status').className='';
+    }catch(e){q('jobs').innerHTML='<tr><td class="empty error" colspan="6">'+e.message+'</td></tr>';q('status').className='error'}}
     refresh();timer=setInterval(refresh,10000);
   </script>
 </body>
