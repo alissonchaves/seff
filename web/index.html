@@ -23,15 +23,20 @@
   </div>
   <p id="status">Refresh interval: 10 seconds.</p>
   <script>
-    const q=id=>document.getElementById(id);let timer,selectedJob=new URLSearchParams(location.search).get('job');
+    const q=id=>document.getElementById(id);let timer,snapshots={};
     function formatMemory(kb){if(!kb)return '—';let n=kb,u='KB';if(n>1024){n/=1024;u='MB'}if(n>1024){n/=1024;u='GB'}return n.toFixed(2)+' '+u}
-    async function refresh(){try{const r=await fetch('metrics-index.json?'+Date.now());if(!r.ok)throw Error('metrics index not found');const index=await r.json();
+    async function refresh(){try{const r=await fetch('metrics-index.json?'+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('metrics index not found');const index=await r.json();
       const entries=Object.values(index).sort((a,b)=>a.job_id.localeCompare(b.job_id)||a.node.localeCompare(b.node));
-      const data=await Promise.all(entries.map(async e=>({meta:e,data:await fetch(e.file+'?'+Date.now()).then(r=>r.json())})));
+      const activeFiles=new Set(entries.map(e=>e.file));
+      Object.keys(snapshots).forEach(file=>{if(!activeFiles.has(file))delete snapshots[file]});
+      await Promise.all(entries.filter(e=>!snapshots[e.file]||snapshots[e.file].updated_at!==e.updated_at).map(async e=>{
+        const response=await fetch(e.file+'?'+Date.now(),{cache:'no-store'});if(response.ok)snapshots[e.file]=await response.json();
+      }));
+      const data=entries.map(e=>({meta:e,data:snapshots[e.file]})).filter(x=>x.data);
       q('jobs').innerHTML=data.length?data.map(({meta:d,data:x})=>`<tr><td>${d.node}</td><td>${d.job_id}</td><td>${x.cpu_percent==null?'—':x.cpu_percent.toFixed(2)+'%'}</td><td>${formatMemory(x.memory_used_kb)}</td><td>${x.gpu&&x.gpu.utilization_percent!=null?x.gpu.utilization_percent.toFixed(2)+'%':'—'}</td><td>${x.gpu&&x.gpu.memory_used_mb!=null?x.gpu.memory_used_mb+' MB':'—'}</td></tr>`).join(''):'<tr><td class="empty" colspan="6">No running jobs.</td></tr>';
-      q('status').textContent=data.length+' node(s) · updated '+new Date().toLocaleTimeString();q('status').className='';
+      q('status').textContent=data.length+' node(s) · checked '+new Date().toLocaleTimeString();q('status').className='';
     }catch(e){q('jobs').innerHTML='<tr><td class="empty error" colspan="6">'+e.message+'</td></tr>';q('status').className='error'}}
-    refresh();timer=setInterval(refresh,10000);
+    refresh();timer=setInterval(refresh,1000);
   </script>
 </body>
 </html>
