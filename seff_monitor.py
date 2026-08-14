@@ -157,7 +157,6 @@ def collect(job_id, output_dir, interval):
     signal.signal(signal.SIGINT, cleanup)
 
     while True:
-        time.sleep(interval)
         now = time.monotonic()
         current_cpu = read_cpu_usage(cgroup)
         cpu_percent = None
@@ -180,6 +179,7 @@ def collect(job_id, output_dir, interval):
         write_snapshot(output, snapshot)
         update_index(output_dir, snapshot, filename)
         previous_cpu, previous_time = current_cpu, now
+        time.sleep(interval)
 
 
 def main():
