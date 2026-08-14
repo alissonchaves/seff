@@ -99,13 +99,8 @@ job without overwriting one another. It also maintains a small
 `metrics-index.json` using a file lock and atomic replacement, so the web page
 can discover and aggregate all nodes.
 
-Install the static dashboard in the login node's public directory:
-
-```bash
-seff-web ~/public_html/seff
-```
-
-The dashboard is a simple static HTML page. It can be installed in Linux's
+The dashboard is a simple static HTML page. It can be copied to the login
+node's public directory or installed in Linux's
 `/etc/skel` so that new users receive it automatically when their home
 directory is created:
 
