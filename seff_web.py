@@ -10,22 +10,26 @@ PAGE = r'''<!doctype html>
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>seff live metrics</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css">
   <style>
-    body{font:16px system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#17202a}
-    input,button{font:inherit;padding:.5rem}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-top:1.5rem}
-    .card{border:1px solid #ddd;border-radius:8px;padding:1rem}.value{font-size:1.7rem;font-weight:700;margin-top:.4rem}
+    body{background:#fafafa}.card{border:1px solid #ddd;border-radius:6px;padding:1.5rem;background:#fff}
+    .value{font-size:2.4rem;font-weight:600;margin-top:.5rem}.metrics{margin-top:2rem}
     #status{color:#666}.error{color:#a00}
   </style>
 </head>
 <body>
+  <div class="container">
   <h1>seff live metrics</h1>
-  <form id="form"><input id="job" placeholder="Job ID" required><button>Load</button></form>
+  <form id="form"><div class="row"><div class="eight columns"><input class="u-full-width" id="job" placeholder="Job ID" required></div><div class="four columns"><button class="button-primary u-full-width">Load</button></div></div></form>
   <p id="status">Enter a job ID. Refresh interval: 10 seconds.</p>
-  <div class="grid">
-    <div class="card">CPU<div class="value" id="cpu">—</div></div>
-    <div class="card">Memory<div class="value" id="memory">—</div></div>
-    <div class="card">GPU utilization<div class="value" id="gpu">—</div></div>
-    <div class="card">GPU memory<div class="value" id="gpumem">—</div></div>
+  <div class="row metrics">
+    <div class="six columns card">CPU<div class="value" id="cpu">—</div></div>
+    <div class="six columns card">Memory<div class="value" id="memory">—</div></div>
+  </div>
+  <div class="row metrics">
+    <div class="six columns card">GPU utilization<div class="value" id="gpu">—</div></div>
+    <div class="six columns card">GPU memory<div class="value" id="gpumem">—</div></div>
+  </div>
   </div>
   <script>
     const q=id=>document.getElementById(id); let timer;
