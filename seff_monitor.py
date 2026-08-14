@@ -83,6 +83,7 @@ def write_snapshot(path, snapshot):
     # temporary file when a job starts more than one task on the same node.
     temporary = path.with_suffix(f"{path.suffix}.tmp.{os.getpid()}")
     temporary.write_text(json.dumps(snapshot, separators=(",", ":")) + "\n")
+    os.chmod(temporary, 0o644)
     os.replace(temporary, path)
 
 
@@ -108,6 +109,7 @@ def update_index(output_dir, snapshot, filename):
             }
             temporary = index_path.with_suffix(f".tmp.{os.getpid()}")
             temporary.write_text(json.dumps(entries, separators=(",", ":")) + "\n")
+            os.chmod(temporary, 0o644)
             os.replace(temporary, index_path)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
@@ -127,6 +129,7 @@ def remove_index_entry(output_dir, job_id, node, filename):
             entries.pop(f"{job_id}.{node}", None)
             temporary = index_path.with_suffix(f".tmp.{os.getpid()}")
             temporary.write_text(json.dumps(entries, separators=(",", ":")) + "\n")
+            os.chmod(temporary, 0o644)
             os.replace(temporary, index_path)
         finally:
             fcntl.flock(lock, fcntl.LOCK_UN)
