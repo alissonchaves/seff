@@ -38,6 +38,16 @@ Open a new login session after running this command.
 Do not omit `--global`: running `pipx install` as `root` installs the command
 only for `root`, usually in `/root/.local/bin`.
 
+For a cluster installation, use the included installer. It applies a safe
+umask and fixes the permissions of the global pipx environment so compute
+node users can execute `seff`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alissonchaves/seff/main/install-global.sh | sudo bash
+```
+
+Run this on every compute node, unless `/opt/pipx` is shared between nodes.
+
 Make sure `/usr/local/bin` is in each user's `PATH`:
 
 ```bash
