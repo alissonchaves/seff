@@ -146,6 +146,18 @@ sudo cp web/index.html /home/<user>/public_html/seff/
 sudo chown -R <user>:<user> /home/<user>/public_html/seff
 ```
 
+To synchronize the dashboard automatically whenever a user starts a login
+shell, install the included profile script:
+
+```bash
+sudo install -m 755 update-user-web.sh /etc/profile.d/seff-web.sh
+```
+
+The script compares `/etc/skel/public_html/seff/index.html` with the user's
+copy and only copies it when the template changed. It does not overwrite job
+metric JSON files. This applies to shell logins that source `/etc/profile.d`;
+non-shell services do not run profile scripts.
+
 The page is available at `~/public_html/seff/index.html` and reads
 the JSON snapshots directly from the same directory. The directory must be
 shared between the login node and compute nodes, or exposed at the same web
