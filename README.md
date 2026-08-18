@@ -136,6 +136,10 @@ job without overwriting one another. It also maintains a small
 `metrics-index.json` using a file lock and atomic replacement, so the web page
 can discover and aggregate all nodes.
 
+Each live snapshot includes the allocated CPU count, allocated memory limit and
+allocated GPU count, as well as current CPU, memory and GPU usage. The web page
+displays these values in separate allocated and usage columns.
+
 `--monitor` does not take a job ID. It must run inside a Slurm job and uses
 the `SLURM_JOB_ID` and cgroup supplied by Slurm. When monitors are started
 automatically for all jobs, the dashboard can aggregate the JSON files for

@@ -51,6 +51,20 @@ def memory_limit(cgroup):
     return None if value is None or value >= 2**60 else value
 
 
+def slurm_gpu_count():
+    for variable in ("SLURM_GPUS_ON_NODE", "SLURM_GPUS"):
+        value = os.environ.get(variable, "").strip()
+        if value.isdigit():
+            return int(value)
+
+    # SLURM_JOB_GPUS/SLURM_STEP_GPUS may contain IDs such as "0,1".
+    for variable in ("SLURM_JOB_GPUS", "SLURM_STEP_GPUS"):
+        value = os.environ.get(variable, "").strip()
+        if value:
+            return len([item for item in value.split(",") if item.strip()])
+    return 0
+
+
 def gpu_metrics():
     command = [
         "nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total",
@@ -167,8 +181,8 @@ def collect(job_id, output_dir, interval):
     filename = f"{job_id}.{node}.json"
     output = output_dir / filename
     cpus = int(os.environ.get(
-        "SLURM_CPUS_PER_TASK",
-        os.environ.get("SLURM_CPUS_ON_NODE", os.cpu_count() or 1),
+        "SLURM_CPUS_ON_NODE",
+        os.environ.get("SLURM_CPUS_PER_TASK", os.cpu_count() or 1),
     ))
     previous_cpu = read_cpu_usage(cgroup)
     previous_time = time.monotonic()
@@ -189,6 +203,8 @@ def collect(job_id, output_dir, interval):
             elapsed = max(now - previous_time, 0.001)
             cpu_percent = round((current_cpu - previous_cpu) / 1_000_000 / elapsed / cpus * 100, 2)
 
+        allocated_memory_kb = (memory_limit(cgroup) or 0) // 1024
+        gpu = gpu_metrics()
         snapshot = {
             "job_id": str(job_id),
             "job_name": job_name,
@@ -200,8 +216,10 @@ def collect(job_id, output_dir, interval):
             "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cpu_percent": cpu_percent,
             "memory_used_kb": (read_number(cgroup / "memory.current") or 0) // 1024,
-            "memory_limit_kb": (memory_limit(cgroup) or 0) // 1024,
-            "gpu": gpu_metrics(),
+            "memory_limit_kb": allocated_memory_kb,
+            "allocated_memory_kb": allocated_memory_kb,
+            "allocated_gpus": slurm_gpu_count() or gpu.get("count", 0),
+            "gpu": gpu,
         }
         write_snapshot(output, snapshot)
         update_index(output_dir, snapshot, filename)

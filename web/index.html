@@ -22,8 +22,8 @@
   <h2>Running jobs</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Node</th><th>Job ID</th><th>Job name</th><th>Status</th><th>CPU</th><th>Memory</th><th>GPU utilization</th><th>GPU memory</th><th>Submit line</th></tr></thead>
-      <tbody id="jobs"><tr><td class="empty" colspan="9">Loading jobs...</td></tr></tbody>
+      <thead><tr><th>Node</th><th>Job ID</th><th>Job name</th><th>Status</th><th>CPU allocated</th><th>CPU usage</th><th>Memory allocated</th><th>Memory used</th><th>GPU allocated</th><th>GPU utilization</th><th>GPU memory</th><th>Submit line</th></tr></thead>
+      <tbody id="jobs"><tr><td class="empty" colspan="12">Loading jobs...</td></tr></tbody>
     </table>
   </div>
   <p id="status">Refresh interval: 10 seconds.</p>
@@ -40,9 +40,9 @@
         const response=await fetch(e.file+'?'+Date.now(),{cache:'no-store'});if(response.ok)snapshots[e.file]=await response.json();
       }));
       const data=entries.map(e=>({meta:e,data:snapshots[e.file]})).filter(x=>x.data);
-      q('jobs').innerHTML=data.length?data.map(({meta:d,data:x})=>`<tr><td>${d.node}</td><td class="job">${d.job_id}</td><td>${x.job_name||'—'}</td><td><span class="state">RUNNING</span></td><td>${x.cpu_percent==null?'—':x.cpu_percent.toFixed(2)+'%'}</td><td>${formatMemory(x.memory_used_kb)}</td><td>${x.gpu&&x.gpu.utilization_percent!=null?x.gpu.utilization_percent.toFixed(2)+'%':'—'}</td><td>${x.gpu&&x.gpu.memory_used_mb!=null?x.gpu.memory_used_mb+' MB':'—'}</td><td>${x.submit_line||'—'}</td></tr>`).join(''):'<tr><td class="empty" colspan="9">No running jobs.</td></tr>';
+      q('jobs').innerHTML=data.length?data.map(({meta:d,data:x})=>`<tr><td>${d.node}</td><td class="job">${d.job_id}</td><td>${x.job_name||'—'}</td><td><span class="state">RUNNING</span></td><td>${x.cpus||'—'}</td><td>${x.cpu_percent==null?'—':x.cpu_percent.toFixed(2)+'%'}</td><td>${formatMemory(x.allocated_memory_kb||x.memory_limit_kb)}</td><td>${formatMemory(x.memory_used_kb)}</td><td>${(x.allocated_gpus??(x.gpu&&x.gpu.count))||'—'}</td><td>${x.gpu&&x.gpu.utilization_percent!=null?x.gpu.utilization_percent.toFixed(2)+'%':'—'}</td><td>${x.gpu&&x.gpu.memory_used_mb!=null?x.gpu.memory_used_mb+' MB':'—'}</td><td>${x.submit_line||'—'}</td></tr>`).join(''):'<tr><td class="empty" colspan="12">No running jobs.</td></tr>';
       q('status').textContent=data.length+' node(s) · checked '+new Date().toLocaleTimeString();q('status').className='';
-    }catch(e){q('jobs').innerHTML='<tr><td class="empty error" colspan="9">'+e.message+'</td></tr>';q('status').className='error'}}
+    }catch(e){q('jobs').innerHTML='<tr><td class="empty error" colspan="12">'+e.message+'</td></tr>';q('status').className='error'}}
     refresh();timer=setInterval(refresh,1000);
   </script>
 </body>
