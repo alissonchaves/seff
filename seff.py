@@ -30,6 +30,7 @@ class JobMetrics:
     cpus: int
     nodes: int
     req_mem_kb: float
+    req_mem: str
     walltime_sec: float
     cpu_util_sec: float
     max_rss_kb: float
@@ -134,10 +135,16 @@ class SeffParser:
         return float(match.group(1)) if match else 0.0
 
     def parse_gpu_count(self, tres_str: str) -> float:
-        return max(
-            self.parse_tres_number(tres_str, "GRES/GPU"),
-            self.parse_tres_number(tres_str, "GPU")
+        if not tres_str:
+            return 0.0
+
+        # Accept both generic and typed GRES forms, for example:
+        # gres/gpu=2 and gres/gpu:rtx4000=2.
+        matches = re.findall(
+            r"(?:^|,)(?:GRES/)?GPU(?:[:/][^=,]+)?=(\d+(?:\.\d+)?)",
+            tres_str.upper()
         )
+        return max((float(value) for value in matches), default=0.0)
 
     def parse_gpu_utilization(self, tres_str: str) -> float:
         return max(
@@ -164,7 +171,8 @@ class SeffParser:
                 jobs_map[base_id] = {
                     'job_id': base_id, 'user': 'unknown', 'group': 'unknown',
                     'state': 'unknown', 'cluster': 'unknown', 'cpus': 1,
-                    'nodes': 1, 'req_mem_kb': 0.0, 'walltime_sec': 0.0,
+                    'nodes': 1, 'req_mem_kb': 0.0, 'req_mem': '',
+                    'walltime_sec': 0.0,
                     'cpu_util_sec': 0.0, 'max_rss_kb': 0.0, 'exit_code': '0',
                     # The main sacct record is an aggregate on some Slurm
                     # versions, while on others the values are only present
@@ -199,6 +207,7 @@ class SeffParser:
                     'cluster': parts[4] if parts[4] else 'unknown',
                     'cpus': int(parts[5]) if (parts[5] and parts[5].isdigit()) else 1,
                     'req_mem_kb': self.parse_memory(parts[6]),
+                    'req_mem': parts[6] if parts[6] else '',
                     'walltime_sec': self.parse_time(parts[7]),
                     'exit_code': parts[8] if parts[8] else '0'
                 })
@@ -226,6 +235,7 @@ class SeffParser:
                 job_id=data['job_id'], user=data['user'], group=data['group'],
                 state=data['state'], cluster=data['cluster'], cpus=data['cpus'],
                 nodes=data['nodes'], req_mem_kb=data['req_mem_kb'],
+                req_mem=data['req_mem'],
                 walltime_sec=data['walltime_sec'],
                 cpu_util_sec=(data['step_cpu_sec'] if data['step_cpu_found']
                               else data['main_cpu_sec']),
@@ -263,6 +273,18 @@ def format_bytes_to_human(kb: float) -> str:
     val = kb / (1024**exp)
     return f"{val:.2f} {units[exp]}B"
 
+def format_allocated_memory(job: JobMetrics) -> str:
+    if job.req_mem_kb <= 0:
+        return "not reported"
+
+    value = format_bytes_to_human(job.req_mem_kb)
+    scope = job.req_mem[-1:].lower() if job.req_mem else ""
+    if scope == "n":
+        return f"{value}/node"
+    if scope == "c":
+        return f"{value}/CPU"
+    return value
+
 def print_job_report(job: JobMetrics):
     print(f"\n{Colors.BOLD}Job ID:{Colors.RESET} {job.job_id}")
     if job.state.startswith("COMPLETED"):
@@ -277,12 +299,14 @@ def print_job_report(job: JobMetrics):
     print(f"{Colors.BOLD}Cluster:{Colors.RESET} {job.cluster}")
     print(f"{Colors.BOLD}User/Group:{Colors.RESET} {job.user}/{job.group}")
     print(f"{Colors.BOLD}State:{Colors.RESET} {state_str}")
+    print(f"{Colors.BOLD}Allocated CPUs:{Colors.RESET} {job.cpus}")
+    print(f"{Colors.BOLD}Allocated Memory:{Colors.RESET} {format_allocated_memory(job)}")
+    print(f"{Colors.BOLD}Allocated GPUs:{Colors.RESET} {job.gpus:g}")
 
     if job.state in ["PENDING", "RUNNING"]:
         print(f"{Colors.YELLOW}Warning: Efficiency statistics only available after job ends.{Colors.RESET}")
         return
 
-    print(f"{Colors.BOLD}Cores:{Colors.RESET} {job.cpus}")
     if job.walltime_sec > 0:
         print(f"{Colors.BOLD}CPU Utilized:{Colors.RESET} {format_seconds_to_time(job.cpu_util_sec)}")
         print(f"{Colors.BOLD}CPU Efficiency:{Colors.RESET} {job.cpu_efficiency:.2f}% of {format_seconds_to_time(job.walltime_sec * job.cpus)} core-walltime")
@@ -291,7 +315,6 @@ def print_job_report(job: JobMetrics):
         if job.req_mem_kb > 0:
             print(f"{Colors.BOLD}Memory Efficiency:{Colors.RESET} {job.mem_efficiency:.2f}% of {format_bytes_to_human(job.req_mem_kb)}")
     if job.gpus > 0:
-        print(f"{Colors.BOLD}GPUs:{Colors.RESET} {job.gpus:g}")
         if job.gpu_utilization > 0:
             print(f"{Colors.BOLD}GPU Efficiency:{Colors.RESET} {job.gpu_utilization:.2f}%")
         else:

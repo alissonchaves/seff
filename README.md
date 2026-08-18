@@ -87,6 +87,19 @@ seff 6683 6685
 seff --json 6683
 ```
 
+## Allocated resources
+
+The report includes the resources allocated to each job:
+
+- `Allocated CPUs`: the number of CPUs from Slurm's `AllocCPUS`.
+- `Allocated Memory`: the requested memory from `ReqMem`, including whether it
+  is allocated per node (`/node`) or per CPU (`/CPU`).
+- `Allocated GPUs`: the GPU count from `AllocTRES`, including typed GPU GRES
+  such as `gres/gpu:rtx4000=2`.
+
+These fields are shown for completed, running and pending jobs. The JSON output
+also includes the original `cpus`, `req_mem_kb`, `req_mem` and `gpus` fields.
+
 ## GPU metrics
 
 To display GPUs and GPU efficiency, Slurm must have GRES configured
