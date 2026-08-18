@@ -10,7 +10,7 @@
     h1{margin:0;font-size:2rem}.subtitle{margin:.35rem 0 0;color:#cbd7eb}.owner{margin:1.5rem 0 .5rem;font-size:1.1rem;font-weight:600}
     input,button{font:inherit;padding:.6rem .8rem;border:1px solid #c8d1df;border-radius:5px;background:#fff}button{cursor:pointer;background:#2f6fed;color:#fff;border-color:#2f6fed}
     button:hover{background:#2458bc}.table-wrap{overflow-x:auto;margin-top:1rem;background:#fff;border:1px solid #dce3ed;border-radius:8px;box-shadow:0 2px 8px #172b4d12}
-    table{width:100%;border-collapse:collapse}th,td{padding:.85rem;text-align:left;border-bottom:1px solid #e7ecf3;white-space:nowrap}th{background:#eef3fa;color:#41536d;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+    table{width:100%;border-collapse:collapse}th,td{padding:.85rem;text-align:left;border-bottom:1px solid #e7ecf3;white-space:nowrap}th{background:#eef3fa;color:#41536d;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;white-space:normal;line-height:1.15;min-width:5.5rem}.submit-line{white-space:normal;overflow-wrap:anywhere;word-break:break-word;min-width:12rem;max-width:20rem;line-height:1.35}
     tr:last-child td{border-bottom:0}tr:hover td{background:#f8fbff}.job{font-weight:600;color:#2458bc}.state{display:inline-block;padding:.2rem .5rem;border-radius:999px;background:#e4f7ec;color:#147a3d;font-size:.78rem;font-weight:600}.empty{text-align:center;color:#66758a;padding:2rem}
     #status{color:#666}.error{color:#a00}
   </style>
@@ -22,7 +22,7 @@
   <h2>Running jobs</h2>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Node</th><th>Job ID</th><th>Job name</th><th>Status</th><th>CPU allocated</th><th>CPU usage</th><th>Memory allocated</th><th>Memory used</th><th>GPU allocated</th><th>GPU utilization</th><th>GPU memory</th><th>Submit line</th></tr></thead>
+      <thead><tr><th>Node</th><th>Job ID</th><th>Job name</th><th>Status</th><th>CPU alloc.</th><th>CPU usage</th><th>Memory alloc.</th><th>Memory used</th><th>GPU alloc.</th><th>GPU utilization</th><th>GPU memory</th><th>Submit line</th></tr></thead>
       <tbody id="jobs"><tr><td class="empty" colspan="12">Loading jobs...</td></tr></tbody>
     </table>
   </div>
@@ -40,7 +40,7 @@
         const response=await fetch(e.file+'?'+Date.now(),{cache:'no-store'});if(response.ok)snapshots[e.file]=await response.json();
       }));
       const data=entries.map(e=>({meta:e,data:snapshots[e.file]})).filter(x=>x.data);
-      q('jobs').innerHTML=data.length?data.map(({meta:d,data:x})=>`<tr><td>${d.node}</td><td class="job">${d.job_id}</td><td>${x.job_name||'—'}</td><td><span class="state">RUNNING</span></td><td>${x.cpus||'—'}</td><td>${x.cpu_percent==null?'—':x.cpu_percent.toFixed(2)+'%'}</td><td>${formatMemory(x.allocated_memory_kb||x.memory_limit_kb)}</td><td>${formatMemory(x.memory_used_kb)}</td><td>${(x.allocated_gpus??(x.gpu&&x.gpu.count))||'—'}</td><td>${x.gpu&&x.gpu.utilization_percent!=null?x.gpu.utilization_percent.toFixed(2)+'%':'—'}</td><td>${x.gpu&&x.gpu.memory_used_mb!=null?x.gpu.memory_used_mb+' MB':'—'}</td><td>${x.submit_line||'—'}</td></tr>`).join(''):'<tr><td class="empty" colspan="12">No running jobs.</td></tr>';
+      q('jobs').innerHTML=data.length?data.map(({meta:d,data:x})=>`<tr><td>${d.node}</td><td class="job">${d.job_id}</td><td>${x.job_name||'—'}</td><td><span class="state">RUNNING</span></td><td>${x.cpus||'—'}</td><td>${x.cpu_percent==null?'—':x.cpu_percent.toFixed(2)+'%'}</td><td>${formatMemory(x.allocated_memory_kb||x.memory_limit_kb)}</td><td>${formatMemory(x.memory_used_kb)}</td><td>${(x.allocated_gpus??(x.gpu&&x.gpu.count))||'—'}</td><td>${x.gpu&&x.gpu.utilization_percent!=null?x.gpu.utilization_percent.toFixed(2)+'%':'—'}</td><td>${x.gpu&&x.gpu.memory_used_mb!=null?x.gpu.memory_used_mb+' MB':'—'}</td><td class="submit-line">${x.submit_line||'—'}</td></tr>`).join(''):'<tr><td class="empty" colspan="12">No running jobs.</td></tr>';
       q('status').textContent=data.length+' node(s) · checked '+new Date().toLocaleTimeString();q('status').className='';
     }catch(e){q('jobs').innerHTML='<tr><td class="empty error" colspan="12">'+e.message+'</td></tr>';q('status').className='error'}}
     refresh();timer=setInterval(refresh,1000);
